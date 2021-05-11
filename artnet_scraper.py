@@ -73,7 +73,7 @@ df = df.drop('info_helper_years_1',axis=1)
 df = df.drop('info_helper_years_2',axis=1)
 df = df.drop('info_helper_years_merged',axis=1)
 df['Born/established'] = pd.to_numeric(df['Born/established'].apply(lambda x: x.replace("?",""))).astype("Int64")
-df['Death'] = pd.to_numeric(df['Death'].apply(lambda x: x.replace("?",""))).astype("Int64")
+df['Died'] = pd.to_numeric(df['Died'].apply(lambda x: x.replace("?",""))).astype("Int64")
 
 '''
 EXPORTS
