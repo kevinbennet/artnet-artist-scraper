@@ -1,5 +1,5 @@
 # Artnet Artist Scraper
-Scraper built in Python creating DataFrame for all artists (approximately 400k) on artnet, separating data into country of origin and active years.
+This is a scraper built in Python. The script creates a list of all artists (including design/furniture companies) that have been offered for sale (mainly auctions/galleries), as recorded by artnet. It creates a DataFrame for all artists recorded on artnet (approximately 400k), further splitting data into the artist's country of origin and active years.
 
 ## Set Up
 
