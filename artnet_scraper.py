@@ -64,6 +64,7 @@ def list_to_str(item):
 df['Country'] = df['info_helper_nationalities'].apply(list_to_str)
 df['info_helper_years_1'] = df['info_helper_1'].apply(lambda x: re.findall("\?(?=[-–])|\d{4}|(?<=[-–])\?",x))
 df['info_helper_years_2'] = df['info_helper_2'].apply(lambda x: re.findall("\?(?=[-–])|\d{4}|(?<=[-–])\?",x))
+df['info_helper_years_2'] = df['info_helper_years_2'].apply(lambda x: pd.NA if len(x)==0 else x)
 df['info_helper_years_merged'] = df['info_helper_years_2'].combine_first(df['info_helper_years_1'])
 df = pd.concat([df, pd.DataFrame(df.info_helper_years_merged.tolist(),columns=['Born/established','Died'])], axis=1)
 df.fillna("",inplace=True)
