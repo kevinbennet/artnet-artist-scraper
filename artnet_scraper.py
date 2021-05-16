@@ -67,7 +67,17 @@ df['info_helper_years_2'] = df['info_helper_2'].apply(lambda x: re.findall("\?(?
 df['info_helper_years_2'] = df['info_helper_years_2'].apply(lambda x: pd.NA if len(x)==0 else x)
 df['info_helper_years_merged'] = df['info_helper_years_2'].combine_first(df['info_helper_years_1'])
 df = pd.concat([df, pd.DataFrame(df.info_helper_years_merged.tolist(),columns=['Born/established','Died'])], axis=1)
+
+# Create Manufacturer column to distinguish from artists (person):
+df['Manufacturer'] = df['Info'].apply(lambda x: "established" in x.lower())
+df['manufacturer_helper'] = df['Artist'].apply(lambda x: "co." in x.lower() or "&" in x.lower() or "ltd." in x.lower() or \
+                                                         "company" in x.lower() or "inc." in x.lower() or "factory" in x.lower() or \
+                                                         "+" in x.lower() or "werkstätte" in x.lower() or "society" in x.lower())
+df['Manufacturer'] = df[['Manufacturer','manufacturer_helper']].any(axis='columns')
+
+# Drop helper columns and format dtypes:
 df.fillna("",inplace=True)
+
 df = df.drop('Info',axis=1)
 df = df.drop('info_list',axis=1)
 df = df.drop('info_helper_1',axis=1)
@@ -76,8 +86,73 @@ df = df.drop('info_helper_nationalities',axis=1)
 df = df.drop('info_helper_years_1',axis=1)
 df = df.drop('info_helper_years_2',axis=1)
 df = df.drop('info_helper_years_merged',axis=1)
+df = df.drop('manufacturer_helper',axis=1)
+
 df['Born/established'] = pd.to_numeric(df['Born/established'].apply(lambda x: x.replace("?",""))).astype("Int64")
 df['Died'] = pd.to_numeric(df['Died'].apply(lambda x: x.replace("?",""))).astype("Int64")
+
+#######################################################################################################################
+################################################# INFER ACTIVE YEARS ##################################################
+#######################################################################################################################
+
+### MUTUALLY EXCLUSIVE ACTIVE RANGE CONDITIONS:
+## Both dates available:
+# 1. if both available: start==born and end==died
+
+## If manufacturer false and only one date:
+# 2. if born/established available AND it's less than 110 years ago: start==born and end==today+1
+# 3. if born/established available AND it's more than 110 years ago: start==born and end==start+110
+# 4. if died available only: start==died-110 and end==died
+
+## If manufacturer true and only one date:
+# 5. if born/established available only: start==born and end==today+1
+# 6. if died available only: start==0 and end==died
+
+## All unavailable:
+# 7. neither born/established nor died available: unknown range
+
+condition_one = (df['Born/established'].apply(lambda x: type(x)==int) & df['Died'].apply(lambda x: type(x)==int))
+condition_two = (~df['Manufacturer'] & df['Born/established'].apply(lambda x: x>datetime.now().year-110) & df['Died'].apply(lambda x: type(x)!=int))
+condition_three = (~df['Manufacturer'] & df['Born/established'].apply(lambda x: x<=datetime.now().year-110) & df['Died'].apply(lambda x: type(x)!=int))
+condition_four = (~df['Manufacturer'] & df['Born/established'].apply(lambda x: type(x)!=int) & df['Died'].apply(lambda x: type(x)==int))
+condition_five = (df['Manufacturer'] & df['Born/established'].apply(lambda x: type(x)==int) & df['Died'].apply(lambda x: type(x)!=int))
+condition_six = (df['Manufacturer'] & df['Born/established'].apply(lambda x: type(x)!=int) & df['Died'].apply(lambda x: type(x)==int))
+condition_seven = (df['Born/established'].apply(lambda x: type(x)!=int) & df['Died'].apply(lambda x: type(x)!=int))
+
+df_condition_one = df.loc[condition_one, ["Born/established", "Died"]]
+df_condition_one['Active Years'] = [str(i)+" - "+str(j) for i,j in df.loc[condition_one, ["Born/established", "Died"]].values]
+df_condition_one['Active Years Range List'] = [list((i,j+1)) for i,j in df.loc[condition_one, ["Born/established", "Died"]].values]
+
+df_condition_two = df.loc[condition_two, ["Born/established", "Died"]]
+df_condition_two['Active Years'] = [str(i)+" - present" for i,j in df.loc[condition_two, ["Born/established", "Died"]].values]
+df_condition_two['Active Years Range List'] = [list((i,datetime.now().year+1)) for i,j in df.loc[condition_two, ["Born/established", "Died"]].values]
+
+df_condition_three = df.loc[condition_three, ["Born/established", "Died"]]
+df_condition_three['Active Years'] = [str(i)+" - "+str(i+110)+" (assumed)" for i,j in df.loc[condition_three, ["Born/established", "Died"]].values]
+df_condition_three['Active Years Range List'] = [list((i,i+111)) for i,j in df.loc[condition_three, ["Born/established", "Died"]].values]
+
+df_condition_four = df.loc[condition_four, ["Born/established", "Died"]]
+df_condition_four['Active Years'] = [str(j-110)+" (assumed) - "+str(j) for i,j in df.loc[condition_four, ["Born/established", "Died"]].values]
+df_condition_four['Active Years Range List'] = [list((j-110,j+1)) for i,j in df.loc[condition_four, ["Born/established", "Died"]].values]
+
+df_condition_five = df.loc[condition_five, ["Born/established", "Died"]]
+df_condition_five['Active Years'] = [str(i)+" - present (assumed)" for i,j in df.loc[condition_five, ["Born/established", "Died"]].values]
+df_condition_five['Active Years Range List'] = [list((i,datetime.now().year+1)) for i,j in df.loc[condition_five, ["Born/established", "Died"]].values]
+
+df_condition_six = df.loc[condition_six, ["Born/established", "Died"]]
+df_condition_six['Active Years'] = [str(0)+" (assumed) - "+str(j) for i,j in df.loc[condition_six, ["Born/established", "Died"]].values]
+df_condition_six['Active Years Range List'] = [list((0,j+1)) for i,j in df.loc[condition_six, ["Born/established", "Died"]].values]
+
+df_condition_seven = df.loc[condition_seven, ["Born/established", "Died"]]
+df_condition_seven['Active Years'] = ["unknown dates" for i,j in df.loc[condition_seven, ["Born/established", "Died"]].values]
+df_condition_seven['Active Years Range List'] = [list((0,datetime.now().year+1)) for i,j in df.loc[condition_seven, ["Born/established", "Died"]].values]
+
+# Combine conditional dataframes and merge with df
+df_active_years = df_condition_one[['Active Years','Active Years Range List']].combine_first(df_condition_two[['Active Years','Active Years Range List']])\
+.combine_first(df_condition_three[['Active Years','Active Years Range List']]).combine_first(df_condition_four[['Active Years','Active Years Range List']])\
+.combine_first(df_condition_five[['Active Years','Active Years Range List']]).combine_first(df_condition_six[['Active Years','Active Years Range List']])\
+.combine_first(df_condition_seven[['Active Years','Active Years Range List']])
+df = pd.concat([df,df_active_years],axis=1)
 
 #######################################################################################################################
 ####################################################### EXPORTS #######################################################
