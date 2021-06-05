@@ -50,8 +50,8 @@ for url in tqdm(artnet_page_list, desc='Scraping Progress: '):
 #######################################################################################################################
 
 df = pd.DataFrame([artist_list,info_list],index=['Artist','Info']).transpose()
-df['Artist'] = df['Artist'].apply(lambda x: x.replace('\xa0',' ').strip())
-df['Artist'] = df.apply(lambda row : row['Artist'].replace(str(row['Info']), ''), axis=1)
+df['Artist'] = df['Artist'].apply(lambda x: x.replace('\xa0',' '))
+df['Artist'] = df.apply(lambda row : row['Artist'].replace(str(row['Info']), '').strip(), axis=1)
 df['Info'] = df['Info'].apply(lambda x: x.lstrip('(').rstrip(')'))
 df['info_list'] = df['Info'].apply(lambda x: x.split(', '))
 df = pd.concat([df, pd.DataFrame(df.info_list.tolist(),columns=['info_helper_1','info_helper_2'])], axis=1)
